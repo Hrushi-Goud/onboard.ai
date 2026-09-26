@@ -2,24 +2,30 @@
 FastAPI application — Smart Developer Onboarding Assistant.
 
 Routes:
-  POST /analyze               → repo summary + file structure
-  POST /explain-architecture  → architecture explanation + Mermaid diagram
-  POST /setup-guide           → local setup instructions
-  POST /starter-tasks         → starter tasks + optimization suggestions
-  GET  /download              → assembles all 6 sections into a .md file download
+  POST /analyze-all  → repo summary, architecture, setup guide, starter tasks (all 4 in parallel)
+  POST /download     → assembles full report into a .md file download
 """
 
+import pathlib
+
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+# Load backend/.env so GROQ_MODEL and GROQ_API_KEY* are available regardless
+# of the working directory the server is started from.
+load_dotenv(pathlib.Path(__file__).parent / ".env")
+
+from backend.routers import analyze_all, download
 
 app = FastAPI(title="Smart Developer Onboarding Assistant", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:5173"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Routes are registered in the routers package (imported below once it exists).
-# For now this file boots cleanly and the server can be started immediately.
+app.include_router(analyze_all.router)
+app.include_router(download.router)
