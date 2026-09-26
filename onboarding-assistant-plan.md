@@ -8,7 +8,7 @@
 
 Build a web application that takes a GitHub repository URL and generates a structured, 6-section developer onboarding report using Groq to analyze repository context gathered by the backend.
 
-- **Backend:** FastAPI — 4 analysis endpoints + 1 download endpoint
+- **Backend:** FastAPI — 2 endpoints: `POST /analyze-all` (runs all 4 Groq capabilities concurrently) + `POST /download` (assembles full `.md` report)
 - **Frontend:** React — single-page input form + tabbed report display + Markdown download
 - **AI Layer:** Groq API — analyzes bounded repository context supplied by the backend; the backend, not Groq, is responsible for retrieving repository files
 - **Export:** Markdown-only (PDF dropped); Mermaid diagrams rendered in-browser via `mermaid` JS
@@ -25,67 +25,73 @@ The work is divided across **5 roles**: Groq Integration, Backend Core, Frontend
 - Groq can be called asynchronously from Python using the official SDK
 - Prompts are validated to produce all 6 report sections reliably
 - A thin Python client module (`groq_client.py`) wraps Groq and is usable by Person 2
+- TPM throttling is enforced per API key (8,000 TPM limit per key)
+- Mermaid diagram output is sanitised to prevent parse errors in the frontend
 
 **Todo List:**
 1. Confirm Groq account access, select a supported model, and check API limits and supported response formats
 2. Validate prompts against representative files from the `finance-tracker-api` test repo for each of the 4 required capabilities
 3. Design and validate prompts for each section: repo summary, architecture + Mermaid diagram (single call), file structure, setup guidance, starter tasks, optimization suggestions
 4. Confirm that architecture + Mermaid diagram can reliably come from one Groq request
-5. Write `backend/groq_client.py` — a thin async wrapper with one callable per analysis capability
-6. Document prompt templates, configured model behavior, and expected response shapes
-7. Define how the backend passes repository context to the client without exceeding practical context limits
+5. Write `backend/groq_client.py` — a thin async wrapper with one callable per analysis capability plus `analyze_all()` that runs all four concurrently via `asyncio.gather`
+6. Add per-key TPM throttle (`_TpmThrottle`) to prevent 429 rate-limit errors when all 4 calls fire in parallel
+7. Add `_sanitise_mermaid()` post-processor to strip parentheses from Mermaid node/edge labels (Mermaid parse error prevention)
+8. Document prompt templates, configured model behavior, and expected response shapes
 
 **Relevant Context:**
-- `plan-brief.md` — confirm the Groq model/API limits and backend repository retrieval strategy before finalizing the integration
-- `backend/.env.example` — currently documents separate Groq API keys for the four analysis methods; keep secrets server-side
+- `backend/groq_client.py` — complete; model `openai/gpt-oss-120b`, 4 separate API keys (GROQ_API_KEY1–4), each with 8,000 TPM
+- `backend/.env.example` — documents separate Groq API keys for the four analysis methods; secrets stay server-side
 - The 6 sections: repo summary, architecture + diagram, file structure, setup guidance, starter tasks, optimization suggestions
+- `_TpmThrottle` class — sliding 60-second window per key; sleeps until estimated tokens fit within budget
+- `_sanitise_mermaid()` — strips `()` from inside `[node labels]` and `|edge labels|` via regex
 
-**Status:** [ ] pending
+**Status:** [x] done
 
 ---
 
 ## Person 2 — Backend Engineer (FastAPI)
 
-**Intent:** Build the FastAPI application with all 5 endpoints, including backend repository retrieval and context selection. Depends on Person 1's `groq_client.py` module being available (or mock-ready) to wire up the analysis routes.
+**Intent:** Build the FastAPI application. Design evolved from 4 individual endpoints to a single `POST /analyze-all` endpoint that calls all 4 Groq capabilities concurrently and returns the complete `OnboardingReport` in one shot. The frontend calls this once and passes the result to `POST /download`.
 
 **Expected Outcomes:**
-- FastAPI app runs via `uvicorn main:app --reload` from `backend/`
-- 4 analysis endpoints each pass selected repository context to the appropriate Groq client function and return structured JSON
-- The Groq client exposes `analyze_all()` to run the four independent capability calls concurrently when a complete report is requested
-- 1 download endpoint assembles all 6 sections into a single `.md` string and serves it as a file
-- `requirements.txt` is complete and accurate
+- FastAPI app runs via `uvicorn backend.main:app --reload` from project root
+- `POST /analyze-all` fetches GitHub context once, runs all 4 Groq tools concurrently, returns full `OnboardingReport` JSON
+- `POST /download` accepts the `OnboardingReport` JSON + `repo_url`, returns a `.md` file download
+- CORS allows `http://localhost:5173` (Vite dev) and `*`
 - All routes use `async def` and raise `HTTPException` with explicit status codes on error
+- `pytest` passes for all 22 backend unit/endpoint tests
 
 **Todo List:**
-1. Review the existing `backend/main.py` and `requirements.txt`; complete the API, router, service, and test structure
-2. Implement a backend-only service to validate a GitHub URL, retrieve repository files, and select bounded context for analysis
-3. Implement `POST /analyze` — supplies repo context to Groq for the repo summary section
-4. Implement `POST /explain-architecture` — supplies repo context for architecture + Mermaid diagram (single request)
-5. Implement `POST /setup-guide` — supplies repo context for setup guidance
-6. Implement `POST /starter-tasks` — supplies repo context for starter tasks + optimization suggestions
-7. Implement `GET /download` — assembles all 6 sections into one `.md` string and serves it as a file download
-8. Add CORS middleware to allow the React frontend to call the API
-9. Write `tests/test_analyze.py` covering happy path and error cases for each endpoint, including repository retrieval and Groq failures
+1. Review and complete `backend/main.py` and `requirements.txt`
+2. Implement `backend/services/repo_context.py` — `parse_github_url()` + `fetch_repo_context()` (async, httpx, 20k char cap, excludes secrets/binaries)
+3. Implement `backend/schemas.py` — `RepoRequest`, `DownloadRequest`; re-export Groq response types
+4. Implement `POST /analyze-all` in `backend/routers/analyze_all.py` — parse URL → fetch context → `_groq.analyze_all(context)` → return `OnboardingReport`
+5. Implement `POST /download` in `backend/routers/download.py` — assemble 6-section `.md` from request body, return as attachment
+6. Wire both routers in `backend/main.py`
+7. Write `backend/tests/test_analyze.py` — 22 tests covering happy paths, all error codes (400/502/503), `/download` standalone, and `parse_github_url` unit tests
 
 **Relevant Context:**
-- `AGENTS.md` — backend run command: `uvicorn main:app --reload`; test command: `pytest`
-- `AGENTS.md` — "async def for all FastAPI route handlers", "HTTPException with explicit status codes"
-- `backend/requirements.txt` already includes the Groq SDK; `backend/.env.example` documents Groq key configuration
-- The 6 sections must all be assembled by the download endpoint into a single `.md` string
+- `backend/routers/analyze_all.py` — single `POST /analyze-all` route; calls `_groq.analyze_all(context)`
+- `backend/routers/download.py` — pure formatter; no GitHub or Groq calls; takes `DownloadRequest`, returns `.md`
+- `backend/services/repo_context.py` — fetches GitHub recursive file tree, filters, caps at 20,000 chars
+- `backend/schemas.py` — `RepoRequest` (repo_url), `DownloadRequest` (repo_url + 4 report sections)
+- `backend/tests/test_analyze.py` — 22 passing tests; mocks `fetch_repo_context` and `_groq.analyze_all`
+- `backend/tests/test_live_integration.py` — live end-to-end test with real GitHub + real Groq; auto-retries on 429; saves `live_report.md`
+- Error mapping: invalid URL → 400; GitHub fetch failure → 503; `GroqResponseError`/`GroqConfigurationError` → 502
 
-**Status:** [ ] pending
+**Status:** [x] done
 
 ---
 
 ## Person 3 — Frontend Engineer (React)
 
-**Intent:** Build the React single-page application — repo URL input form, tabbed report display, and download button. No auth, no routing, no database. Simple and demo-ready.
+**Intent:** Build the React single-page application — repo URL input form, tabbed report display, and download button. Calls `POST /analyze-all` once to get the full report, then renders each section in its own tab. No auth, no routing, no database.
 
 **Expected Outcomes:**
 - App runs via `npm run dev` from `frontend/`
 - User pastes a repo URL, clicks "Analyze", sees a loading state, then a tabbed report
-- Tabs: Architecture, Setup, Starter Tasks (minimum); all 6 sections accessible in the UI
-- Download button triggers the backend `/download` endpoint and saves a `.md` file
+- Tabs display all 6 sections: Summary, Architecture, File Structure, Setup Guide, Starter Tasks, Optimization Suggestions
+- Download button calls `POST /download` with the cached report JSON and saves a `.md` file
 - All components are functional React, written in TypeScript, no `any` types
 - Errors from the backend are surfaced in the UI, never silently swallowed
 
@@ -93,17 +99,17 @@ The work is divided across **5 roles**: Groq Integration, Backend Core, Frontend
 1. Scaffold `frontend/` with Vite + React + TypeScript
 2. Build `RepoInputForm` component — text input for repo URL + submit button + loading state
 3. Build `ReportTabs` component — tab navigation across the 6 report sections
-4. Build individual section display components: `ArchitectureTab`, `SetupTab`, `StarterTasksTab`, `SummaryTab`, `FileStructureTab`, `OptimizationsTab`
-5. Wire up API calls to all 4 backend endpoints concurrently once repository context is ready (or use the coordinated full-report flow)
-6. Add `DownloadButton` component that calls `/download` and triggers `.md` file save in-browser
-7. Add error boundary / error display for failed API calls
+4. Build individual section display components: `SummaryTab`, `ArchitectureTab`, `FileStructureTab`, `SetupTab`, `StarterTasksTab`, `OptimizationsTab`
+5. Wire `POST /analyze-all` call on form submit — store full `OnboardingReport` in state; pass each section to its tab component
+6. Add `DownloadButton` component that calls `POST /download` with the cached report + `repo_url` and triggers `.md` file save in-browser
+7. Add error display for failed API calls
 8. Add `npm run lint` passing with no warnings
 
 **Relevant Context:**
-- `AGENTS.md` — "Prefer TypeScript; no `any` types; functional React components only"
-- `AGENTS.md` — "React should surface errors in UI, never silently swallow them"
+- Backend `POST /analyze-all` returns the full `OnboardingReport` in one shot — one API call populates all tabs
+- Backend `POST /download` accepts `{ repo_url, analysis, architecture, setup_guide, starter_tasks_and_optimizations }` — pass the spread of the `/analyze-all` response plus `repo_url`
+- Person 4 owns Mermaid rendering — Person 3 renders a placeholder `<div id="mermaid-container">` in `ArchitectureTab` for Person 4 to hook into
 - `plan-brief.md` — "simple page where you paste a repo link and get a readable report"
-- Person 4 owns Mermaid rendering — Person 3 only needs to render a placeholder `<div>` for the diagram slot
 
 **Status:** [ ] pending
 
@@ -111,28 +117,27 @@ The work is divided across **5 roles**: Groq Integration, Backend Core, Frontend
 
 ## Person 4 — Diagram + Export Engineer
 
-**Intent:** Own two specific technical pieces: (1) rendering Mermaid diagrams in-browser inside the React app, and (2) the Markdown assembly + download flow on the backend. Both are isolated enough to be owned by one person.
+**Intent:** Own two specific pieces: (1) rendering the Mermaid diagram in-browser inside the React app's `ArchitectureTab`, and (2) verifying the `/download` endpoint's Markdown output is correct. The backend download endpoint is already implemented; Person 4 validates and integrates it.
 
 **Expected Outcomes:**
 - `mermaid` JS library is integrated into the React app; raw Mermaid syntax from Groq renders as a live diagram
-- The diagram auto-re-renders when the content changes (new repo analyzed)
-- The backend `/download` endpoint produces a valid `.md` file containing all 6 sections including the raw Mermaid code block
-- The `.md` file renders correctly when opened in GitHub, GitLab, or any standard Markdown viewer
+- The diagram re-renders when a new repo is analyzed
+- Mermaid render errors fall back to a raw code block (the backend already sanitises parentheses, but render errors can still occur)
+- The backend `POST /download` produces a valid `.md` file with all 6 sections and a fenced Mermaid code block — validated against GitHub rendering
 
 **Todo List:**
 1. Install and configure `mermaid` JS in the React frontend
-2. Build `MermaidDiagram` component — takes raw Mermaid string as a prop, renders the diagram in-browser
-3. Integrate `MermaidDiagram` into the `ArchitectureTab` component (coordinate with Person 3)
-4. Handle Mermaid render errors gracefully — show raw code block as fallback if diagram fails to parse
-5. On the backend: implement the Markdown assembly template in the `/download` endpoint — all 6 sections in order, with the Mermaid block wrapped in a fenced code block (` ```mermaid ... ``` `)
-6. Validate the exported `.md` renders correctly on GitHub by checking against a real file
-7. Test that the in-browser diagram and the exported Mermaid block both come from the same architecture response (no duplicate request)
+2. Build `MermaidDiagram` component — accepts raw Mermaid string as prop, calls `mermaid.render()`, displays diagram
+3. Integrate `MermaidDiagram` into the `ArchitectureTab` component (Person 3 provides the placeholder slot)
+4. Handle Mermaid render errors gracefully — show raw fenced code block as fallback
+5. Validate `POST /download` output — run the live test, open `live_report.md` on GitHub, confirm all 6 sections and Mermaid block render correctly
+6. Confirm the in-browser diagram and the exported Mermaid block both come from the same `/analyze-all` response (no duplicate Groq request)
 
 **Relevant Context:**
-- `plan-brief.md` — "React frontend renders the Mermaid live on-screen using the mermaid JS library (lightweight, in-browser)"
-- `plan-brief.md` — "FastAPI assembles all 6 sections (including the raw Mermaid code block) into one .md string, served as a file download"
-- `plan-brief.md` — ask Groq to output the architecture explanation and Mermaid syntax in the same request
-- The Mermaid code block is part of the architecture response from Groq — Person 1 must confirm the exact response shape
+- `backend/routers/download.py` — already implemented; wraps `architecture.mermaid` in ` ```mermaid ``` ` fenced block
+- `backend/groq_client.py` — `_sanitise_mermaid()` strips `()` from labels before the response is returned; diagram should parse cleanly
+- `backend/tests/live_report.md` — the last real generated report; use this to verify the Mermaid block renders on GitHub
+- Person 3 provides a `<div>` placeholder in `ArchitectureTab` for `MermaidDiagram` to mount into
 
 **Status:** [ ] pending
 
@@ -140,32 +145,32 @@ The work is divided across **5 roles**: Groq Integration, Backend Core, Frontend
 
 ## Person 5 — QA + Demo Engineer
 
-**Intent:** Own end-to-end testing, the demo script, and the impact framing. This person ensures the full pipeline works on the `finance-tracker-api` demo repo and that the submission tells a clear, compelling story to judges.
+**Intent:** Own end-to-end testing, the demo script, and the impact framing. Ensures the full pipeline works on the `finance-tracker-api` demo repo and that the submission tells a clear, compelling story to judges.
 
 **Expected Outcomes:**
-- All 4 required capabilities verified working end-to-end on `finance-tracker-api`
+- All 4 required capabilities verified working end-to-end on `finance-tracker-api` via `POST /analyze-all`
 - A recorded or live demo showing: paste URL → generate report → view architecture diagram → download `.md`
 - A clear "before/after" impact statement: estimated time saved per new dev onboarded
 - `pytest` passes for all backend tests; `npm test` passes for frontend tests
 - Submission materials (README, demo video or link, lablab.ai submission form) are complete
 
 **Todo List:**
-1. Set up a local environment running both backend and frontend simultaneously
-2. Run end-to-end test on `finance-tracker-api` — verify all 6 report sections are generated correctly
+1. Set up a local environment running both backend (`uvicorn backend.main:app --reload`) and frontend (`npm run dev`) simultaneously
+2. Run end-to-end test on `finance-tracker-api` — verify all 6 report sections are generated correctly via `POST /analyze-all`
 3. Verify the Mermaid diagram renders in-browser for `finance-tracker-api`
-4. Verify the `.md` download contains all 6 sections and the Mermaid block renders on GitHub
-5. Write and run `pytest` for backend; confirm all tests pass
-6. Write and run frontend tests; confirm `npm test` passes
+4. Verify the `.md` download (via `POST /download`) contains all 6 sections and the Mermaid block renders on GitHub
+5. Run `pytest` for backend; confirm all tests pass
+6. Run frontend tests; confirm `npm test` passes
 7. Draft the demo script: open with the pain point → live analysis of `finance-tracker-api` → show all tabs → download report → end with impact number
 8. Write the impact framing: "onboarding this repo used to take ~2 days → now takes 20 minutes" with a concrete before/after
 9. Write `README.md` covering: what the app does, how to run it (backend + frontend), how repository context is prepared, and how Groq is used
 10. Complete the lablab.ai submission form with demo link, repo link, and team info
 
 **Relevant Context:**
-- `AGENTS.md` — "Demo target repo is `finance-tracker-api` — test all 4 core capabilities against it before submitting"
-- `plan-brief.md` — "Show the tool generating a guide live (or via recording) on the finance-tracker-api repo, hitting all 4 required capabilities"
-- `plan-brief.md` — "End with the impact number: estimated time saved per new dev onboarded"
-- `plan-brief.md` — "Add a simple before/after framing: onboarding this repo used to take ~2 days of reading → now takes 20 minutes"
+- Backend run command: `uvicorn backend.main:app --reload` from project root
+- `backend/tests/test_live_integration.py` — live end-to-end test; run this first to confirm the full backend pipeline works
+- `backend/tests/live_report.md` — most recent real report from `finance-tracker-api`; use as reference for what the output looks like
+- `plan-brief.md` — "Show the tool generating a guide live on the finance-tracker-api repo, hitting all 4 required capabilities"
 
 **Status:** [ ] pending
 
@@ -174,10 +179,10 @@ The work is divided across **5 roles**: Groq Integration, Backend Core, Frontend
 ## Dependency Order
 
 ```
-Person 1 (Groq Integration)
-    └── unblocks → Person 2 (Backend)
+Person 1 (Groq Integration) — DONE
+    └── unblocks → Person 2 (Backend) — DONE
                         └── unblocks → Person 3 + 4 (Frontend + Diagram/Export) in parallel
                                             └── unblocks → Person 5 (QA + Demo)
 ```
 
-Person 3 and Person 4 can start scaffolding in parallel with Person 2, but need Person 2's endpoints and Person 1's confirmed Groq response shapes before wiring up real data.
+Person 3 and Person 4 can start scaffolding in parallel; both need Person 2's endpoints before wiring up real data.

@@ -38,10 +38,10 @@ The challenge asks teams to help new developers understand and contribute to an 
 
 ### Build plan (within the 48 hours)
 
-1. Confirm the Groq model and account limits, then validate prompts using representative files from a test repo
-2. Implement backend repository retrieval/context selection and the Groq client; keep model configuration in backend environment settings
-3. Build the FastAPI backend with 4 endpoints/functions matching the 4 required capabilities: analyze, explain architecture, generate setup guide, suggest starter tasks
-4. Build the React frontend: input box for repo link → tabbed or sectioned report (Architecture / Setup / Starter Tasks)
+1. Confirm the Groq model and account limits, then validate prompts using representative files from a test repo — **done**
+2. Implement backend repository retrieval/context selection and the Groq client; keep model configuration in backend environment settings — **done**
+3. Build the FastAPI backend: `POST /analyze-all` runs all 4 Groq capabilities concurrently and returns the full `OnboardingReport` in one shot; `POST /download` assembles all 6 sections into a `.md` file — **done**
+4. Build the React frontend: input box for repo link → tabbed or sectioned report (Summary / Architecture / File Structure / Setup / Starter Tasks / Optimizations) → download button
 5. Test end-to-end on your own **finance-tracker-api** repo as a real demo case — proves it works on genuine, non-trivial code
 6. If time allows (hour 30+), consider an optional feature only after the core flow works; keep IBM watsonx integrations out of the core Groq path
 7. Add a simple "before/after" framing for the demo: "onboarding this repo used to take ~2 days of reading → now takes 20 minutes"
@@ -76,9 +76,16 @@ Add a "Download" button on the frontend that exports all 6 sections above into a
 - React frontend renders the Mermaid live on-screen using the `mermaid` JS library (lightweight, in-browser)
 - MD export: FastAPI assembles all 6 sections (including the raw Mermaid code block) into one `.md` string, served as a file download
 
-## Next steps
+## Current Status
 
-- Confirm the Groq model to use, its API limits, and response-format support
-- Decide how the backend safely retrieves a public GitHub repository and selects files within model context limits
-- Validate prompt/output shapes on a small repo, including architecture and Mermaid output in one request
-- Implement the FastAPI + React core flow around the 4 capabilities; keep provider credentials server-side
+- **Person 1 (Groq Integration):** done — `backend/groq_client.py`, model `openai/gpt-oss-120b`, 4 keys with 8,000 TPM each, `_TpmThrottle` per key, `_sanitise_mermaid()` post-processor
+- **Person 2 (Backend):** done — `POST /analyze-all` + `POST /download`, 22 passing tests, live end-to-end test validates real output from `finance-tracker-api`
+- **Person 3 (Frontend):** pending — `frontend/` not yet created
+- **Person 4 (Diagram + Export):** pending — backend download endpoint is ready; Mermaid frontend component not yet built
+- **Person 5 (QA + Demo):** pending — blocked on frontend completion
+
+## Next Steps
+
+- Person 3: scaffold `frontend/` with Vite + React + TypeScript; build the input form, tabbed report display, and download button
+- Person 4: integrate `mermaid` JS into the React app; build `MermaidDiagram` component; validate `/download` output on GitHub
+- Person 5: end-to-end test once frontend is running; write README and demo script
