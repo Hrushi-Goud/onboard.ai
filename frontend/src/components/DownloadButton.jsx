@@ -6,7 +6,7 @@ export default function DownloadButton({ report, repoUrl }) {
   async function handleDownload() {
     setIsDownloading(true);
     try {
-      const response = await fetch('http://localhost:8000/download', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/download`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ repo_url: repoUrl, ...report }),

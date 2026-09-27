@@ -6,6 +6,7 @@ Routes:
   POST /download     → assembles full report into a .md file download
 """
 
+import os
 import pathlib
 
 from dotenv import load_dotenv
@@ -20,9 +21,14 @@ from backend.routers import analyze_all, download
 
 app = FastAPI(title="Onboard.ai", version="0.1.0")
 
+_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    os.getenv("FRONTEND_URL", ""),
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[o for o in _ALLOWED_ORIGINS if o],
     allow_methods=["*"],
     allow_headers=["*"],
 )

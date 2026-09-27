@@ -27,7 +27,7 @@ export default function App() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('http://localhost:8000/analyze-all', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/analyze-all`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ repo_url: url }),
@@ -46,7 +46,7 @@ export default function App() {
       setReport(data);
     } catch (err) {
       if (err instanceof TypeError) {
-        setError('Could not connect to the backend. Make sure it is running on http://localhost:8000.');
+        setError('Could not connect to the backend.');
       } else {
         setError(err.message);
       }
