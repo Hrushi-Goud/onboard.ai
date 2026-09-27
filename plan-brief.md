@@ -86,6 +86,6 @@ Add a "Download" button on the frontend that exports all 6 sections above into a
 
 ## Next Steps
 
-- Person 3: scaffold `frontend/` with Vite + React + TypeScript; build the input form, tabbed report display, and download button
+- Person 3: scaffold `frontend/` with Vite + React + JavaScript; build the input form, tabbed report display, and download button
 - Person 4: integrate `mermaid` JS into the React app; build `MermaidDiagram` component; validate `/download` output on GitHub
 - Person 5: end-to-end test once frontend is running; write README and demo script

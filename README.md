@@ -30,7 +30,7 @@ All 4 Groq analysis calls run **in parallel** — one GitHub fetch, one wait, fu
 | Backend | FastAPI + Python 3.11+ |
 | AI | Groq API (`openai/gpt-oss-120b`) |
 | GitHub fetch | `httpx` — async, no auth needed for public repos |
-| Frontend | React + TypeScript (Vite) — _in progress_ |
+| Frontend | React + JavaScript (Vite) — `.jsx`, no TypeScript |
 
 ---
 
@@ -171,6 +171,24 @@ Expect a `200` response with the full `OnboardingReport` JSON (~10–15 seconds 
 
 ---
 
+### 7. Set up and start the frontend
+
+> **Prerequisites:** Node.js 18 or higher
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Frontend starts at **http://localhost:5173**
+
+Open it in your browser, paste a GitHub repo URL, and click **Analyze**.
+
+> Both the backend (step 5) and frontend must be running at the same time.
+
+---
+
 ## How it works
 
 ```
@@ -209,6 +227,24 @@ onboard.ai/
 │   │   └── download.py          POST /download
 │   └── services/
 │       └── repo_context.py      GitHub fetch + context assembly
+├── frontend/
+│   ├── package.json
+│   ├── vite.config.js
+│   └── src/
+│       ├── App.jsx              Root component — API call, state, error display
+│       ├── App.css              Global styles
+│       ├── main.jsx             ReactDOM entry point
+│       └── components/
+│           ├── RepoInputForm.jsx     URL input + submit button
+│           ├── ReportTabs.jsx        6-tab navigation component
+│           ├── DownloadButton.jsx    POST /download → .md file save
+│           └── tabs/
+│               ├── SummaryTab.jsx
+│               ├── ArchitectureTab.jsx   Mermaid diagram placeholder
+│               ├── FileStructureTab.jsx
+│               ├── SetupTab.jsx
+│               ├── StarterTasksTab.jsx
+│               └── OptimizationsTab.jsx
 └── README.md
 ```
 

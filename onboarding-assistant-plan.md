@@ -92,11 +92,11 @@ The work is divided across **5 roles**: Groq Integration, Backend Core, Frontend
 - User pastes a repo URL, clicks "Analyze", sees a loading state, then a tabbed report
 - Tabs display all 6 sections: Summary, Architecture, File Structure, Setup Guide, Starter Tasks, Optimization Suggestions
 - Download button calls `POST /download` with the cached report JSON and saves a `.md` file
-- All components are functional React, written in TypeScript, no `any` types
+- All components are functional React, written in JavaScript (`.jsx`), no TypeScript
 - Errors from the backend are surfaced in the UI, never silently swallowed
 
 **Todo List:**
-1. Scaffold `frontend/` with Vite + React + TypeScript
+1. Scaffold `frontend/` with Vite + React + JavaScript (no TypeScript)
 2. Build `RepoInputForm` component — text input for repo URL + submit button + loading state
 3. Build `ReportTabs` component — tab navigation across the 6 report sections
 4. Build individual section display components: `SummaryTab`, `ArchitectureTab`, `FileStructureTab`, `SetupTab`, `StarterTasksTab`, `OptimizationsTab`
@@ -110,34 +110,75 @@ The work is divided across **5 roles**: Groq Integration, Backend Core, Frontend
 - Backend `POST /download` accepts `{ repo_url, analysis, architecture, setup_guide, starter_tasks_and_optimizations }` — pass the spread of the `/analyze-all` response plus `repo_url`
 - Person 4 owns Mermaid rendering — Person 3 renders a placeholder `<div id="mermaid-container">` in `ArchitectureTab` for Person 4 to hook into
 - `plan-brief.md` — "simple page where you paste a repo link and get a readable report"
+- Stack: Vite + React + JavaScript (`.jsx` files, no TypeScript, no `tsconfig`)
 
-**Status:** [ ] pending
+**Status:** [x] done
 
 ---
 
-## Person 4 — Diagram + Export Engineer
+## Person 4 — Diagram + Markdown Rendering Engineer
 
-**Intent:** Own two specific pieces: (1) rendering the Mermaid diagram in-browser inside the React app's `ArchitectureTab`, and (2) verifying the `/download` endpoint's Markdown output is correct. The backend download endpoint is already implemented; Person 4 validates and integrates it.
+**Intent:** Own two specific pieces: (1) rendering the Mermaid diagram in-browser inside the React app's `ArchitectureTab`, and (2) rendering all Markdown content (bold, lists, headings, inline code) properly across every tab. Right now the backend returns Markdown-formatted strings (e.g. `**bold**`, numbered lists) but all tabs render them as raw plain text via `<p>` tags. Person 4 fixes both issues.
 
 **Expected Outcomes:**
-- `mermaid` JS library is integrated into the React app; raw Mermaid syntax from Groq renders as a live diagram
-- The diagram re-renders when a new repo is analyzed
-- Mermaid render errors fall back to a raw code block (the backend already sanitises parentheses, but render errors can still occur)
+- `react-markdown` is installed and all tabs that show Groq-generated text render proper HTML (bold, lists, headings, code blocks)
+- `mermaid` JS library is integrated into the React app; raw Mermaid syntax from Groq renders as a live diagram in `ArchitectureTab`
+- The diagram re-renders correctly when a new repo is analyzed
+- Mermaid render errors fall back to a raw `<pre><code>` fenced block (the backend already sanitises parentheses, but render errors can still occur)
 - The backend `POST /download` produces a valid `.md` file with all 6 sections and a fenced Mermaid code block — validated against GitHub rendering
 
 **Todo List:**
-1. Install and configure `mermaid` JS in the React frontend
-2. Build `MermaidDiagram` component — accepts raw Mermaid string as prop, calls `mermaid.render()`, displays diagram
-3. Integrate `MermaidDiagram` into the `ArchitectureTab` component (Person 3 provides the placeholder slot)
-4. Handle Mermaid render errors gracefully — show raw fenced code block as fallback
-5. Validate `POST /download` output — run the live test, open `live_report.md` on GitHub, confirm all 6 sections and Mermaid block render correctly
-6. Confirm the in-browser diagram and the exported Mermaid block both come from the same `/analyze-all` response (no duplicate Groq request)
+1. `cd frontend && npm install react-markdown mermaid` — add both packages
+2. Build `frontend/src/components/MarkdownRenderer.jsx` — a thin wrapper around `<ReactMarkdown>` that accepts a `children` string prop; use this everywhere Groq text is rendered
+3. Build `frontend/src/components/MermaidDiagram.jsx` — accepts a `chart` string prop; on mount/update calls `mermaid.render()` and injects the SVG; on error shows a `<pre><code>` fallback
+4. Update `SummaryTab.jsx` — replace `<p>{analysis.summary}</p>` with `<MarkdownRenderer>{analysis.summary}</MarkdownRenderer>`
+5. Update `ArchitectureTab.jsx` — replace `<p style={{ whiteSpace:'pre-wrap' }}>{architecture.explanation}</p>` with `<MarkdownRenderer>{architecture.explanation}</MarkdownRenderer>`; replace the placeholder `<div id="mermaid-container">` block with `<MermaidDiagram chart={architecture.mermaid} />`
+6. Update `SetupTab.jsx` — the `verification` field is Groq prose; wrap it: `<MarkdownRenderer>{setupGuide.verification}</MarkdownRenderer>`; also wrap individual `step` items that contain inline code (backticks) with `<MarkdownRenderer>`
+7. Handle Mermaid render errors gracefully — show raw fenced code block as fallback
+8. Validate `POST /download` output — open `backend/tests/live_report.md` on GitHub, confirm all 6 sections and Mermaid block render correctly
+9. Confirm the in-browser diagram and the exported Mermaid block both come from the same `/analyze-all` response (no duplicate Groq request)
+10. Run `npm run lint` — confirm 0 warnings and 0 errors before marking done
 
-**Relevant Context:**
+**Relevant Context — what Person 3 already built (do NOT re-implement):**
+- `frontend/src/App.jsx` — root component; handles API call, state, error display; renders all 6 sections inline (no `ReportTabs` used — the tab component exists but App renders sections directly)
+- `frontend/src/components/tabs/SummaryTab.jsx` — renders `analysis.summary` as `<p>{analysis.summary}</p>` → **needs MarkdownRenderer**
+- `frontend/src/components/tabs/ArchitectureTab.jsx` — renders `architecture.explanation` with `whiteSpace:'pre-wrap'`; has `<div id="mermaid-container" data-mermaid={architecture.mermaid}>` placeholder → **needs both MarkdownRenderer + MermaidDiagram**
+- `frontend/src/components/tabs/FileStructureTab.jsx` — renders `{ path, purpose }` pairs; purpose is plain text, no Markdown needed
+- `frontend/src/components/tabs/SetupTab.jsx` — renders prerequisites/steps as lists, env vars, verification text → **verification field needs MarkdownRenderer**
+- `frontend/src/components/tabs/StarterTasksTab.jsx` — task title + description + file chips; description is plain prose, no Markdown needed
+- `frontend/src/components/tabs/OptimizationsTab.jsx` — suggestion + rationale + file chips; rationale is plain prose, no Markdown needed
+- `frontend/src/components/DownloadButton.jsx` — calls `POST /download`, triggers `.md` blob save; fully working, do not touch
+- `frontend/src/components/RepoInputForm.jsx` — URL input + submit button; fully working, do not touch
 - `backend/routers/download.py` — already implemented; wraps `architecture.mermaid` in ` ```mermaid ``` ` fenced block
 - `backend/groq_client.py` — `_sanitise_mermaid()` strips `()` from labels before the response is returned; diagram should parse cleanly
 - `backend/tests/live_report.md` — the last real generated report; use this to verify the Mermaid block renders on GitHub
-- Person 3 provides a `<div>` placeholder in `ArchitectureTab` for `MermaidDiagram` to mount into
+- `backend/backend_analyze_all_repsonse.json` — full sample API response; use for local dev/testing without hitting the backend
+
+**Key implementation note for MermaidDiagram:**
+```jsx
+// frontend/src/components/MermaidDiagram.jsx
+import { useEffect, useRef, useState } from 'react';
+import mermaid from 'mermaid';
+
+mermaid.initialize({ startOnLoad: false, theme: 'default' });
+
+export default function MermaidDiagram({ chart }) {
+  const ref = useRef(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    if (!chart || !ref.current) return;
+    setError(false);
+    const id = 'mermaid-' + Math.random().toString(36).slice(2);
+    mermaid.render(id, chart)
+      .then(({ svg }) => { ref.current.innerHTML = svg; })
+      .catch(() => setError(true));
+  }, [chart]);
+
+  if (error) return <pre><code>{chart}</code></pre>;
+  return <div ref={ref} />;
+}
+```
 
 **Status:** [ ] pending
 
