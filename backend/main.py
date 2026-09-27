@@ -18,7 +18,7 @@ load_dotenv(pathlib.Path(__file__).parent / ".env")
 
 from backend.routers import analyze_all, download
 
-app = FastAPI(title="Smart Developer Onboarding Assistant", version="0.1.0")
+app = FastAPI(title="Onboard.ai", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
