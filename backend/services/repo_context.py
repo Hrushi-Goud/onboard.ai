@@ -7,6 +7,9 @@ import re
 from urllib.parse import urlparse
 
 import httpx
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Files/extensions to skip entirely
 _EXCLUDED_EXTENSIONS = {
@@ -62,6 +65,9 @@ async def fetch_repo_context(owner: str, repo: str) -> str:
     """
     api_base = f"https://api.github.com/repos/{owner}/{repo}"
     headers = {"Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"}
+    github_token = os.getenv("GITHUB_TOKEN")
+    if github_token:
+        headers["Authorization"] = f"Bearer {github_token}"
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         # Fetch flat recursive file tree
