@@ -180,7 +180,7 @@ export default function MermaidDiagram({ chart }) {
 }
 ```
 
-**Status:** [ ] pending
+**Status:** [x] done — web rendering complete; mobile responsiveness is out of scope (web-only build)
 
 ---
 

@@ -81,7 +81,7 @@ Add a "Download" button on the frontend that exports all 6 sections above into a
 - **Person 1 (Groq Integration):** done — `backend/groq_client.py`, model `openai/gpt-oss-120b`, 4 keys with 8,000 TPM each, `_TpmThrottle` per key, `_sanitise_mermaid()` post-processor
 - **Person 2 (Backend):** done — `POST /analyze-all` + `POST /download`, 22 passing tests, live end-to-end test validates real output from `finance-tracker-api`
 - **Person 3 (Frontend):** pending — `frontend/` not yet created
-- **Person 4 (Diagram + Export):** pending — backend download endpoint is ready; Mermaid frontend component not yet built
+- **Person 4 (Diagram + Export):** done — `MarkdownRenderer.jsx` + `MermaidDiagram.jsx` built; all affected tabs updated; web rendering verified working; mobile is out of scope (web-only build)
 - **Person 5 (QA + Demo):** pending — blocked on frontend completion
 
 ## Next Steps
