@@ -66,19 +66,49 @@ export default function App() {
           <p className="tagline">
             Paste a GitHub URL. Get a full onboarding report in seconds.
           </p>
+          <div className="feature-pills">
+            <span className="feature-pill">Summary</span>
+            <span className="feature-pill">Architecture</span>
+            <span className="feature-pill">File Structure</span>
+            <span className="feature-pill">Setup Guide</span>
+            <span className="feature-pill">Starter Tasks</span>
+            <span className="feature-pill">Optimizations</span>
+          </div>
           <RepoInputForm onSubmit={handleSubmit} isLoading={isLoading} />
+          {isLoading && (
+            <div className="loading-state">
+              <div className="loading-spinner" />
+              <p>Analyzing repository — this may take a moment…</p>
+            </div>
+          )}
+          {!isLoading && !report && !error && (
+            <div className="how-it-works">
+              <p className="hiw-heading">How it works</p>
+              <div className="hiw-grid">
+                <div className="hiw-card">
+                  <div className="hiw-num">01</div>
+                  <div className="hiw-title">Paste a URL</div>
+                  <div className="hiw-desc">Drop any public GitHub repository URL into the box.</div>
+                </div>
+                <div className="hiw-card">
+                  <div className="hiw-num">02</div>
+                  <div className="hiw-title">Analyse</div>
+                  <div className="hiw-desc">The AI reads the code, structure, and documentation.</div>
+                </div>
+                <div className="hiw-card">
+                  <div className="hiw-num">03</div>
+                  <div className="hiw-title">Get a report</div>
+                  <div className="hiw-desc">Receive a full onboarding report ready to share.</div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       {/* ── Main content area ── */}
+      {(error || report) && (
       <main className="main-content">
-        {isLoading && (
-          <div className="loading-state">
-            <div className="loading-spinner" />
-            <p>Analyzing repository — this may take a moment…</p>
-          </div>
-        )}
-
         {error && (
           <div className="error-banner" role="alert">
             <span className="error-icon">⚠</span>
@@ -89,48 +119,60 @@ export default function App() {
         {report && (
           <div className="report-sections">
             <section className="report-section">
-              <div className="section-label">01</div>
-              <h2 className="section-heading">Summary</h2>
+              <div className="section-header">
+                <div className="section-label">01</div>
+                <h2 className="section-heading">Summary</h2>
+              </div>
               <div className="section-body">
                 <SummaryTab analysis={report.analysis} />
               </div>
             </section>
 
             <section className="report-section">
-              <div className="section-label">02</div>
-              <h2 className="section-heading">Architecture</h2>
+              <div className="section-header">
+                <div className="section-label">02</div>
+                <h2 className="section-heading">Architecture</h2>
+              </div>
               <div className="section-body">
                 <ArchitectureTab architecture={report.architecture} />
               </div>
             </section>
 
             <section className="report-section">
-              <div className="section-label">03</div>
-              <h2 className="section-heading">File Structure</h2>
+              <div className="section-header">
+                <div className="section-label">03</div>
+                <h2 className="section-heading">File Structure</h2>
+              </div>
               <div className="section-body">
                 <FileStructureTab analysis={report.analysis} />
               </div>
             </section>
 
             <section className="report-section">
-              <div className="section-label">04</div>
-              <h2 className="section-heading">Setup Guide</h2>
+              <div className="section-header">
+                <div className="section-label">04</div>
+                <h2 className="section-heading">Setup Guide</h2>
+              </div>
               <div className="section-body">
                 <SetupTab setupGuide={report.setup_guide} />
               </div>
             </section>
 
             <section className="report-section">
-              <div className="section-label">05</div>
-              <h2 className="section-heading">Starter Tasks</h2>
+              <div className="section-header">
+                <div className="section-label">05</div>
+                <h2 className="section-heading">Starter Tasks</h2>
+              </div>
               <div className="section-body">
                 <StarterTasksTab tasks={report.starter_tasks_and_optimizations.starter_tasks} />
               </div>
             </section>
 
             <section className="report-section">
-              <div className="section-label">06</div>
-              <h2 className="section-heading">Optimizations</h2>
+              <div className="section-header">
+                <div className="section-label">06</div>
+                <h2 className="section-heading">Optimizations</h2>
+              </div>
               <div className="section-body">
                 <OptimizationsTab optimizations={report.starter_tasks_and_optimizations.optimizations} />
               </div>
@@ -142,6 +184,18 @@ export default function App() {
           </div>
         )}
       </main>
+      )}
+
+      {/* ── Footer ── */}
+      <footer className="site-footer">
+        <div className="footer-inner">
+          <span className="footer-brand">Onboard<span className="footer-accent">.ai</span></span>
+          <span className="footer-sep">·</span>
+          <span className="footer-copy">MIT License © {new Date().getFullYear()}</span>
+          <span className="footer-sep">·</span>
+          <span className="footer-copy">Built for developers, by developers</span>
+        </div>
+      </footer>
     </div>
   );
 }
