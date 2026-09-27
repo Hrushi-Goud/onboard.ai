@@ -1,3 +1,5 @@
+import MarkdownRenderer from '../MarkdownRenderer';
+
 export default function SetupTab({ setupGuide }) {
   return (
     <div>
@@ -13,7 +15,7 @@ export default function SetupTab({ setupGuide }) {
       <h3>Steps</h3>
       <ol className="steps-list">
         {setupGuide.steps.map((step, i) => (
-          <li key={i}>{step}</li>
+          <li key={i}><MarkdownRenderer>{step}</MarkdownRenderer></li>
         ))}
       </ol>
 
@@ -25,7 +27,9 @@ export default function SetupTab({ setupGuide }) {
       </div>
 
       <h3>Verification</h3>
-      <div className="verification-box">{setupGuide.verification}</div>
+      <div className="verification-box">
+        <MarkdownRenderer>{setupGuide.verification}</MarkdownRenderer>
+      </div>
     </div>
   );
 }

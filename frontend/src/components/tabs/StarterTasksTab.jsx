@@ -1,3 +1,5 @@
+import MarkdownRenderer from '../MarkdownRenderer';
+
 export default function StarterTasksTab({ tasks }) {
   return (
     <div>
@@ -6,7 +8,7 @@ export default function StarterTasksTab({ tasks }) {
         {tasks.map((task, i) => (
           <div key={i} className="task-card">
             <h3>{task.title}</h3>
-            <p>{task.description}</p>
+            <MarkdownRenderer>{task.description}</MarkdownRenderer>
             <div className="affected-files">
               {task.files.map((file) => (
                 <span key={file} className="file-chip">{file}</span>
