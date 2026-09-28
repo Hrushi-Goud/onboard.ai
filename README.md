@@ -144,6 +144,7 @@ onboard.ai/
 └── frontend/
     ├── package.json
     ├── vite.config.js
+    ├── .env.example
     └── src/
         ├── App.jsx              Root component — API call, state, layout
         ├── main.jsx             ReactDOM entry point
