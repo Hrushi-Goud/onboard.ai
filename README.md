@@ -104,6 +104,21 @@ App live at **http://localhost:5173**
 
 ## API
 
+### `GET /`
+
+Returns the backend status and registered API endpoint paths:
+
+```json
+{
+  "status": "ok",
+  "endpoints": ["/analyze-all", "/download", "/health"]
+}
+```
+
+### `GET /health`
+
+Returns `{"status": "ok"}` when the backend is running.
+
 ### `POST /analyze-all`
 
 ```json
