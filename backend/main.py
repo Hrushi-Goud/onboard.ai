@@ -54,4 +54,6 @@ async def root() -> dict[str, str | list[str]]:
             if isinstance(route, APIRoute) and route.path != "/"
         )
     )
+    if app.docs_url and app.docs_url not in endpoints:
+        endpoints.append(app.docs_url)
     return {"status": "ok", "endpoints": endpoints}

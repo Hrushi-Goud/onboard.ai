@@ -111,7 +111,7 @@ Returns the backend status and registered API endpoint paths:
 ```json
 {
   "status": "ok",
-  "endpoints": ["/analyze-all", "/download", "/health"]
+  "endpoints": ["/analyze-all", "/download", "/health", "/docs"]
 }
 ```
 
