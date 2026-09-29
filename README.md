@@ -2,6 +2,10 @@
 
 Paste a GitHub repo URL → get a full developer onboarding report in seconds.
 
+🚀 Live demo: https://ui-onboard-ai.onrender.com
+
+🧷 API: https://api-onboard-ai.onrender.com
+
 ---
 
 ## What it does
