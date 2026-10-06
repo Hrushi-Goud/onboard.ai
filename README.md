@@ -181,3 +181,6 @@ onboard.ai/
                 ├── StarterTasksTab.jsx
                 └── OptimizationsTab.jsx
 ```
+
+## Contributers
+- [Hrushi-Goud](https://github.com/Hrushi-Goud)
